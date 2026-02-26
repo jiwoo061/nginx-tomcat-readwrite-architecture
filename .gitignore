@@ -1,0 +1,23 @@
+# ===== Java build outputs =====
+/build/
+/target/
+/bin/
+out/
+
+# ===== Logs =====
+*.log
+
+# ===== IDE: Eclipse =====
+.classpath
+.project
+.settings/
+Servers/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Secrets / local configs =====
+*.env
+*.local
+db.properties
