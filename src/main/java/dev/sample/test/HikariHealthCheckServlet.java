@@ -18,41 +18,55 @@ import javax.servlet.http.HttpServletResponse;
 @WebServlet("/test/hikari")
 public class HikariHealthCheckServlet extends HttpServlet {
 
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
+	@Override
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        resp.setContentType("text/plain; charset=UTF-8");
-        PrintWriter out = resp.getWriter();
+		resp.setContentType("text/plain; charset=UTF-8");
+		PrintWriter out = resp.getWriter();
 
-        ServletContext ctx = getServletContext();
-        Object obj = ctx.getAttribute("DATA_SOURCE");
-        if (obj == null) {
-            resp.setStatus(500);
-            out.println("FAIL: DATA_SOURCE not found in ServletContext");
-            return;
-        }
+		ServletContext ctx = getServletContext();
+		Object sourceObj = ctx.getAttribute("SOURCE_DS");
+		Object replicaObj = ctx.getAttribute("REPLICA_DS");
+		if (sourceObj == null || replicaObj == null) {
+			resp.setStatus(500);
+			out.println("FAIL: DATA_SOURCE not found in ServletContext");
+			return;
+		}
 
-        DataSource ds = (DataSource) obj;
+		DataSource sourceDs = (DataSource) sourceObj;
+		DataSource replicaDs = (DataSource) replicaObj;
 
-        String sql = "SELECT 1";
+		String sql = "SELECT 1";
 
-        long start = System.currentTimeMillis();
-        try (Connection con = ds.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+		long start = System.currentTimeMillis();
+		// 1. Source DB 체크
+		try (Connection con = sourceDs.getConnection();
+				PreparedStatement ps = con.prepareStatement(sql);
+				ResultSet rs = ps.executeQuery()) {
 
-            rs.next();
-            int v = rs.getInt(1);
+			rs.next();
+			int v = rs.getInt(1);
 
-            long elapsed = System.currentTimeMillis() - start;
-            out.println("Status: OK");
-            out.println("queryResult=" + v);
-            out.println("elapsedMs=" + elapsed);
-            out.println("connClass=" + con.getClass().getName());
-        } catch (Exception e) {
-            resp.setStatus(500);
-            out.println("FAIL: " + e.getClass().getName() + " - " + e.getMessage());
-        }
-    }
+			long elapsed = System.currentTimeMillis() - start;
+			out.println("Source Status: OK");
+			out.println("queryResult=" + v);
+			out.println("elapsedMs=" + elapsed);
+			out.println("connClass=" + con.getClass().getName());
+		} catch (Exception e) {
+			resp.setStatus(500);
+			out.println("FAIL: " + e.getClass().getName() + " - " + e.getMessage());
+		}
+
+		out.println("---------------------------------------");
+
+		// 2. Replica DB 체크
+		try (Connection con = replicaDs.getConnection();
+				PreparedStatement ps = con.prepareStatement(sql);
+				ResultSet rs = ps.executeQuery()) {
+			rs.next();
+			out.println("REPLICA Status: OK, Result=" + rs.getInt(1));
+		} catch (Exception e) {
+			out.println("REPLICA FAIL: " + e.getMessage());
+		}
+	}
 }
