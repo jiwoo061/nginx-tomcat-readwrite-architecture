@@ -1,0 +1,39 @@
+services:
+  # Source DB (쓰기 전용)
+  card-source:
+    image: mysql:8.0
+    container_name: card-source
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${SOURCE_PORT}:3306"
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --default-authentication-plugin=mysql_native_password
+    networks:
+      - card-network
+
+  # Replica DB (읽기 전용)
+  card-replica:
+    image: mysql:8.0
+    container_name: card-replica
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${REPLICA_PORT}:3306"
+    command:
+      - --server-id=2
+      - --default-authentication-plugin=mysql_native_password
+    depends_on:
+      - card-source
+    networks:
+      - card-network
+
+networks:
+  card-network:
+    driver: bridge
