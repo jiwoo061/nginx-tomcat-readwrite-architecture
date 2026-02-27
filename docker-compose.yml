@@ -8,6 +8,9 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./db/source/data:/var/lib/mysql
+      - ./card_data:/home/data
     ports:
       - "${SOURCE_PORT}:3306"
     command:

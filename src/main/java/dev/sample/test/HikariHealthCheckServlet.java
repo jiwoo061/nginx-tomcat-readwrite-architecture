@@ -36,7 +36,7 @@ public class HikariHealthCheckServlet extends HttpServlet {
 		DataSource sourceDs = (DataSource) sourceObj;
 		DataSource replicaDs = (DataSource) replicaObj;
 
-		String sql = "SELECT 1";
+		String sql = "SELECT * FROM CARD_TRANSACTION LIMIT 3";
 
 		long start = System.currentTimeMillis();
 		// 1. Source DB 체크
@@ -44,14 +44,16 @@ public class HikariHealthCheckServlet extends HttpServlet {
 				PreparedStatement ps = con.prepareStatement(sql);
 				ResultSet rs = ps.executeQuery()) {
 
-			rs.next();
-			int v = rs.getInt(1);
+			if (rs.next()) {
+		        // 첫 번째 컬럼이 문자열일 수 있으므로 getString으로 받거나, 
+		        // 성공했다는 사실 자체만 출력하는 것이 안전합니다.
+		        String firstValue = rs.getString(1); 
 
-			long elapsed = System.currentTimeMillis() - start;
-			out.println("Source Status: OK");
-			out.println("queryResult=" + v);
-			out.println("elapsedMs=" + elapsed);
-			out.println("connClass=" + con.getClass().getName());
+		        long elapsed = System.currentTimeMillis() - start;
+		        out.println("Source Status: OK");
+		        out.println("queryResult (first col)=" + firstValue);
+		        out.println("elapsedMs=" + elapsed);
+		    }
 		} catch (Exception e) {
 			resp.setStatus(500);
 			out.println("FAIL: " + e.getClass().getName() + " - " + e.getMessage());
@@ -63,8 +65,11 @@ public class HikariHealthCheckServlet extends HttpServlet {
 		try (Connection con = replicaDs.getConnection();
 				PreparedStatement ps = con.prepareStatement(sql);
 				ResultSet rs = ps.executeQuery()) {
-			rs.next();
-			out.println("REPLICA Status: OK, Result=" + rs.getInt(1));
+//			rs.next();
+//			out.println("REPLICA Status: OK, Result=" + rs.getInt(1));
+			if (rs.next()) {
+		        out.println("REPLICA Status: OK, First Row Data=" + rs.getString(1));
+		    }
 		} catch (Exception e) {
 			out.println("REPLICA FAIL: " + e.getMessage());
 		}
