@@ -29,7 +29,6 @@ public class ApplicationContextListener implements ServletContextListener {
 		HikariConfig configSource = new HikariConfig();
 		// 필수 설정값(별도의 설정파일로 분리 가능, ex. jdbc.properties)
 		// 1. Source DB 설정 (Write/Read)
-//        configSource.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
 		configSource.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
 		configSource.setUsername("admin");
 		configSource.setPassword("1234");
@@ -39,7 +38,7 @@ public class ApplicationContextListener implements ServletContextListener {
 		// 2. Replica DB 설정 (Read Only)
 		HikariConfig configReplica = new HikariConfig();
 		configReplica.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
-		configReplica.setUsername("user");
+		configReplica.setUsername("root");
 		configReplica.setPassword("1234");
 		configReplica.setPoolName("HikariPool-Replica");
 		replicaDS = new HikariDataSource(configReplica);

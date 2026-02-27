@@ -21,3 +21,6 @@ Thumbs.db
 *.env
 *.local
 db.properties
+
+db/
+card_data/
