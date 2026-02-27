@@ -43,7 +43,7 @@ public class CardTransactionServlet extends HttpServlet {
 		resp.setContentType("text/plain; charset=UTF-8");
 		PrintWriter out = resp.getWriter();
 
-		int randomId = (int) Math.random() * 100 + 100;
+		int randomId = (int) (Math.random() * 100) + 100;
 		String sql = "INSERT INTO TEST (id, name, amount, description) VALUES (?, ?, ?, ?)";
 
 		// DBManager를 통해 POST 요청(Source 3306)으로 자동 연결
