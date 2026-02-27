@@ -1,6 +1,7 @@
 package dev.sample;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
 import javax.servlet.ServletContext;
@@ -8,31 +9,34 @@ import javax.servlet.http.HttpServletRequest;
 import javax.sql.DataSource;
 
 public class DBManager {
-	public static Connection getConnection(HttpServletRequest req) throws SQLException {
+    public static Connection getConnection(HttpServletRequest req) throws SQLException {
         ServletContext ctx = req.getServletContext();
         DataSource ds;
-        String dbName;
         
-        // Read 요청
-        // 요청 메서드가 GET이면 읽기 전용(Replica) 사용
+        // 1. 요청 메서드에 따른 분기
         if ("GET".equalsIgnoreCase(req.getMethod())) {
             ds = (DataSource) ctx.getAttribute("REPLICA_DS");
-            dbName = "REPLICA (3307)"; // 로그용 변수
-        } 
-        // CUD 요청
-        // POST, PUT, DELETE 등은 마스터(Source) 사용
-        else {
+        } else {
             ds = (DataSource) ctx.getAttribute("SOURCE_DS");
-            dbName = "SOURCE (3306)"; // 로그용 변수
         }
         
-        System.out.println(">>> [DBManager] Current Request Method: " + req.getMethod());
-        System.out.println(">>> [DBManager] Connecting to " + dbName + " Database...");
-
         if (ds == null) {
-            throw new SQLException("DataSource not found for: " + dbName);
+            throw new SQLException("DataSource not found.");
         }
 
-        return ds.getConnection();
+        // 2. 실제 커넥션을 먼저 가져옵니다.
+        Connection con = ds.getConnection();
+
+        // 3. 연결된 Connection 객체로부터 실제 물리적 주소 정보를 읽어옵니다.
+        DatabaseMetaData meta = con.getMetaData();
+        String actualUrl = meta.getURL(); 
+
+        // 4. 로그 출력
+        System.out.println("--- DB Connection Info ---");
+        System.out.println("Request Method : " + req.getMethod());
+        System.out.println("Real Connect URL : " + actualUrl);
+        System.out.println("--------------------------");
+
+        return con;
     }
 }
