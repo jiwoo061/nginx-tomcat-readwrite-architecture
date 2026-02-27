@@ -24,7 +24,7 @@ public class CardTransactionServlet extends HttpServlet {
 		// DBManager를 통해 GET 요청(Replica 3307)으로 자동 연결
 		try (Connection con = DBManager.getConnection(req);
 //				PreparedStatement ps = con.prepareStatement("SELECT * FROM CARD_TRANSACTION LIMIT 5");
-				PreparedStatement ps = con.prepareStatement("SELECT * FROM TEST LIMIT 5");
+				PreparedStatement ps = con.prepareStatement("SELECT * FROM test LIMIT 5");
 				ResultSet rs = ps.executeQuery()) {
 
 			out.println("=== The Huddle: 실시간 카드 트랜잭션 조회 (Replica) ===");
