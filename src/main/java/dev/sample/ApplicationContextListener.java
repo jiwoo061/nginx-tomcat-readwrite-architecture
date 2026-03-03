@@ -4,9 +4,14 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.sql.DataSource;
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Enumeration;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
 
 public class ApplicationContextListener implements ServletContextListener {
 
@@ -64,6 +69,27 @@ public class ApplicationContextListener implements ServletContextListener {
 			sourceDS.close();
 		if (replicaDS != null)
 			replicaDS.close();
+
+		// Tomcat 재배포/중지 시 MySQL cleanup thread 누수 경고 방지
+		try {
+			AbandonedConnectionCleanupThread.checkedShutdown();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// 현재 웹앱 클래스로더에서 등록한 JDBC 드라이버 정리
+		ClassLoader cl = Thread.currentThread().getContextClassLoader();
+		Enumeration<Driver> drivers = DriverManager.getDrivers();
+		while (drivers.hasMoreElements()) {
+			Driver d = drivers.nextElement();
+			if (d.getClass().getClassLoader() == cl) {
+				try {
+					DriverManager.deregisterDriver(d);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	// 상황에 맞는 DataSource를 가져오기 위한 static 메서드

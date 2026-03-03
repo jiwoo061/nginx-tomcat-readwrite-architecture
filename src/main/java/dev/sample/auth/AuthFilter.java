@@ -19,7 +19,18 @@ public class AuthFilter implements Filter {
         Object loginUser = (session == null) ? null : session.getAttribute("LOGIN_USER");
 
         if (loginUser == null) {
-            resp.sendRedirect(req.getContextPath() + "/login.jsp");
+            String uri = req.getRequestURI();
+            boolean isReportApi = uri != null && uri.startsWith(req.getContextPath() + "/report/");
+            String accept = req.getHeader("Accept");
+            boolean wantsJson = accept != null && accept.contains("application/json");
+
+            if (isReportApi || wantsJson) {
+                resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                resp.setContentType("application/json; charset=UTF-8");
+                resp.getWriter().write("{\"success\":false,\"error\":\"unauthorized\"}");
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/login.jsp");
+            }
             return;
         }
 
