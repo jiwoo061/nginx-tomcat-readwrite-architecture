@@ -12,7 +12,7 @@ import lombok.ToString;
 @Setter
 @ToString
 @Builder
-public class User {
+public class User1 {
 
     private Long id;
 

@@ -3,13 +3,11 @@ package dev.sample;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
-import javax.servlet.annotation.WebListener;
 import javax.sql.DataSource;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
-@WebListener
 public class ApplicationContextListener implements ServletContextListener {
 
 	private HikariDataSource sourceDS;
@@ -30,7 +28,7 @@ public class ApplicationContextListener implements ServletContextListener {
 		// 필수 설정값(별도의 설정파일로 분리 가능, ex. jdbc.properties)
 		// 1. Source DB 설정 (Write/Read)
 		configSource.setJdbcUrl("jdbc:mysql://localhost:3308/card_db?serverTimezone=Asia/Seoul");
-		configSource.setUsername("admin");
+		configSource.setUsername("root");
 		configSource.setPassword("1234");
 		configSource.setPoolName("HikariPool-Source");
 		sourceDS = new HikariDataSource(configSource);

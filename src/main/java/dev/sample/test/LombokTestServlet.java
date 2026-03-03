@@ -25,7 +25,7 @@ public class LombokTestServlet extends HttpServlet {
 
 
         // Builder 테스트
-        User user = User.builder()
+        User1 user = User1.builder()
                 .id(1L)
                 .name("YOO")
                 .age(35)
