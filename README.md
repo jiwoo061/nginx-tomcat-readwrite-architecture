@@ -7,7 +7,7 @@ Nginx + Tomcat + MySQL Source/Replica 환경에서 **요청 메서드(GET/POST/P
 | `GET` | Replica DB (`REPLICA_DS`) |
 | `POST` / `PUT` / `DELETE` | Source DB (`SOURCE_DS`) |
 
-웹 애플리케이션은 **Servlet/JSP 기반**이며, 로그인 후 **지역별 소비 리포트(업종 TOP5)**를 조회할 수 있습니다.
+웹 애플리케이션은 **Servlet/JSP 기반**이며, 로그인 후 지역별 소비 리포트(업종 TOP5)를 조회할 수 있습니다.
 
 ---
 
@@ -35,7 +35,6 @@ Client
                                    ▲ (Replication)
 ```
 
-> 실무에서는 복제 지연(lag)이나 강한 일관성 요구가 있을 때 "특정 조회는 Source로 강제" 같은 정책도 함께 설계합니다.
 
 ---
 
