@@ -6,6 +6,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class TopSpendServlet extends HttpServlet {
@@ -14,7 +16,7 @@ public class TopSpendServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String region = req.getParameter("region");
+        String region = normalizeRegion(req);
 
         resp.setContentType("application/json; charset=UTF-8");
 
@@ -29,8 +31,12 @@ public class TopSpendServlet extends HttpServlet {
             resp.setStatus(400);
             resp.getWriter().write("{\"success\":false,\"error\":\"" + escape(e.getMessage()) + "\"}");
         } catch (Exception e) {
+            e.printStackTrace();
             resp.setStatus(500);
-            resp.getWriter().write("{\"success\":false,\"error\":\"internal server error\"}");
+            Throwable root = (e.getCause() != null) ? e.getCause() : e;
+            String msg = root.getMessage();
+            String err = root.getClass().getSimpleName() + ": " + (msg == null ? "unknown" : msg);
+            resp.getWriter().write("{\"success\":false,\"error\":\"" + escape(err) + "\"}");
         }
     }
 
@@ -61,5 +67,34 @@ public class TopSpendServlet extends HttpServlet {
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r");
+    }
+
+    private String normalizeRegion(HttpServletRequest req) {
+        String region = req.getParameter("region");
+        if (region != null) {
+            region = region.trim();
+        }
+
+        if (region != null && !region.isEmpty()) {
+            return region;
+        }
+
+        String qs = req.getQueryString();
+        if (qs == null || qs.isEmpty()) {
+            return region;
+        }
+
+        for (String pair : qs.split("&")) {
+            int idx = pair.indexOf('=');
+            if (idx < 0) continue;
+
+            String key = pair.substring(0, idx);
+            if (!"region".equals(key)) continue;
+
+            String raw = pair.substring(idx + 1);
+            String decoded = URLDecoder.decode(raw, StandardCharsets.UTF_8);
+            return decoded == null ? null : decoded.trim();
+        }
+        return region;
     }
 }

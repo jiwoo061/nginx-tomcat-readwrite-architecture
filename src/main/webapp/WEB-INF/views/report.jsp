@@ -339,6 +339,20 @@
       try {
         const url = '<%=request.getContextPath()%>/report/region?region=' + encodeURIComponent(selectedRegion);
         const res = await fetch(url, { method: 'GET' });
+        const contentType = res.headers.get('content-type') || '';
+
+        if (res.status === 401) {
+          document.getElementById('rows').innerHTML = '';
+          meta.innerHTML = '<span class="error">세션이 만료되었습니다. 다시 로그인해 주세요.</span>';
+          return;
+        }
+
+        if (!contentType.includes('application/json')) {
+          document.getElementById('rows').innerHTML = '';
+          meta.innerHTML = '<span class="error">조회 응답 형식이 올바르지 않습니다. 로그인 상태를 확인해 주세요.</span>';
+          return;
+        }
+
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -351,7 +365,7 @@
         renderRows(data.top || []);
       } catch (e) {
         document.getElementById('rows').innerHTML = '';
-        meta.innerHTML = '<span class="error">네트워크 오류로 조회에 실패했습니다.</span>';
+        meta.innerHTML = '<span class="error">조회 요청 처리 중 오류가 발생했습니다.</span>';
       }
     }
 
