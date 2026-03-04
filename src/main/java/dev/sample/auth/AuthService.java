@@ -1,5 +1,7 @@
 package dev.sample.auth;
 
+import javax.servlet.http.HttpSession;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,5 +17,11 @@ public class AuthService {
         if (rec == null) return null;                 // 아이디 없음
         if (!password.equals(rec.password)) return null; // 비번 불일치 (지금은 평문 비교 방식 유지)
         return new User(rec.userId, rec.loginId, rec.name);
+    }
+    
+    public void logout(HttpSession session) {
+        if (session != null) {
+            session.invalidate();
+        }
     }
 }
