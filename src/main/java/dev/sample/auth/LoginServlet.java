@@ -1,13 +1,22 @@
 package dev.sample.auth;
 
-import dev.sample.DBManager;
+import org.springframework.context.ApplicationContext;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.*;
 import java.io.IOException;
-import java.sql.*;
 
 public class LoginServlet extends HttpServlet {
+
+    private AuthService authService;
+
+    @Override
+    public void init() {
+    	System.out.println("[LoginServlet] authService=" + authService);
+    	ApplicationContext spring =
+                (ApplicationContext) getServletContext().getAttribute("SPRING_CTX");
+        this.authService = spring.getBean(AuthService.class);
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -28,39 +37,20 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        String sql = "SELECT user_id, login_id, password, name FROM users WHERE login_id = ?";
-
-        try (Connection con = DBManager.getConnection(req);
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setString(1, loginId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    resp.sendRedirect(req.getContextPath() + "/login.jsp?error=invalid");
-                    return;
-                }
-
-                String dbPw = rs.getString("password");
-                if (!password.equals(dbPw)) {
-                    resp.sendRedirect(req.getContextPath() + "/login.jsp?error=invalid");
-                    return;
-                }
-
-                User user = new User(
-                        rs.getLong("user_id"),
-                        rs.getString("login_id"),
-                        rs.getString("name")
-                );
-
-                HttpSession session = req.getSession(true);
-                session.setAttribute("LOGIN_USER", user);
-                session.setMaxInactiveInterval(30 * 60); // 30분
-
-                resp.sendRedirect(req.getContextPath() + "/report");
+        try {
+            User user = authService.login(loginId, password); // ✅ 여기서 DAO/DB 처리
+            if (user == null) {
+                resp.sendRedirect(req.getContextPath() + "/login.jsp?error=invalid");
+                return;
             }
 
-        } catch (SQLException e) {
+            HttpSession session = req.getSession(true);
+            session.setAttribute("LOGIN_USER", user);
+            session.setMaxInactiveInterval(30 * 60);
+
+            resp.sendRedirect(req.getContextPath() + "/report");
+
+        } catch (Exception e) {
             throw new ServletException(e);
         }
     }

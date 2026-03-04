@@ -4,6 +4,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.sql.DataSource;
+
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -11,12 +14,17 @@ import java.util.Enumeration;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+
+import dev.sample.auth.AuthConfig;
+
 import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
 
 public class ApplicationContextListener implements ServletContextListener {
 
 	private HikariDataSource sourceDS;
 	private HikariDataSource replicaDS;
+
+	private AnnotationConfigApplicationContext spring;
 
 	@Override
 	public void contextInitialized(ServletContextEvent sce) {
@@ -32,7 +40,7 @@ public class ApplicationContextListener implements ServletContextListener {
 		HikariConfig configSource = new HikariConfig();
 		// 필수 설정값(별도의 설정파일로 분리 가능, ex. jdbc.properties)
 		// 1. Source DB 설정 (Write/Read)
-		configSource.setJdbcUrl("jdbc:mysql://localhost:3308/card_db?serverTimezone=Asia/Seoul");
+		configSource.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
 		configSource.setUsername("root");
 		configSource.setPassword("1234");
 		configSource.setPoolName("HikariPool-Source");
@@ -40,7 +48,7 @@ public class ApplicationContextListener implements ServletContextListener {
 
 		// 2. Replica DB 설정 (Read Only)
 		HikariConfig configReplica = new HikariConfig();
-		configReplica.setJdbcUrl("jdbc:mysql://localhost:3309/card_db?serverTimezone=Asia/Seoul");
+		configReplica.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
 		configReplica.setUsername("root");
 		configReplica.setPassword("1234");
 		configReplica.setPoolName("HikariPool-Replica");
@@ -60,11 +68,23 @@ public class ApplicationContextListener implements ServletContextListener {
 		// ServletContext에 두 개의 DataSource를 모두 저장
 		ctx.setAttribute("SOURCE_DS", sourceDS);
 		ctx.setAttribute("REPLICA_DS", replicaDS);
+		
+        spring = new AnnotationConfigApplicationContext();
+        spring.registerBean("sourceDS", javax.sql.DataSource.class, () -> sourceDS);
+        spring.register(AuthConfig.class); // 너가 만든 authconfig
+        spring.refresh();
+
+        ctx.setAttribute("SPRING_CTX", spring);
+        
+        System.out.println("[BOOT] DS ready: " + (sourceDS != null));
+        System.out.println("[BOOT] SPRING_CTX ready: " + (spring != null) + ", beans=" + spring.getBeanDefinitionCount());
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
 		System.out.println("컨텍스트 종료됨: DB 커넥션 풀 자원 해제");
+		if(spring !=null)
+			spring.close();
 		if (sourceDS != null)
 			sourceDS.close();
 		if (replicaDS != null)
