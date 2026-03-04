@@ -2,6 +2,7 @@ package dev.sample.report;
 
 import dev.sample.DBManager;
 import dev.sample.report.dto.IndustrySpendDto;
+import org.springframework.stereotype.Repository;
 
 import javax.servlet.http.HttpServletRequest;
 import java.sql.Connection;
@@ -10,6 +11,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
+@Repository
 public class ReportReadDao {
 
     private static final String SQL_LATEST_BAS_YH =

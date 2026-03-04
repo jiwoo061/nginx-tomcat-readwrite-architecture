@@ -12,11 +12,16 @@ import java.util.Enumeration;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 public class ApplicationContextListener implements ServletContextListener {
 
+	private static final String SPRING_CONTEXT_ATTR = "SPRING_CONTEXT";
+
 	private HikariDataSource sourceDS;
 	private HikariDataSource replicaDS;
+	private AnnotationConfigApplicationContext springContext;
 
 	@Override
 	public void contextInitialized(ServletContextEvent sce) {
@@ -60,6 +65,12 @@ public class ApplicationContextListener implements ServletContextListener {
 		// ServletContext에 두 개의 DataSource를 모두 저장
 		ctx.setAttribute("SOURCE_DS", sourceDS);
 		ctx.setAttribute("REPLICA_DS", replicaDS);
+
+		// dev.sample.report 패키지의 비즈니스 객체를 스프링 컨테이너로 관리
+		springContext = new AnnotationConfigApplicationContext();
+		springContext.scan("dev.sample.report");
+		springContext.refresh();
+		ctx.setAttribute(SPRING_CONTEXT_ATTR, springContext);
 	}
 
 	@Override
@@ -69,6 +80,9 @@ public class ApplicationContextListener implements ServletContextListener {
 			sourceDS.close();
 		if (replicaDS != null)
 			replicaDS.close();
+		if (springContext != null) {
+			springContext.close();
+		}
 
 		// Tomcat 재배포/중지 시 MySQL cleanup thread 누수 경고 방지
 		try {
@@ -99,5 +113,9 @@ public class ApplicationContextListener implements ServletContextListener {
 
 	public static DataSource getReplicaDataSource(ServletContext ctx) {
 		return (DataSource) ctx.getAttribute("REPLICA_DS");
+	}
+
+	public static ApplicationContext getSpringContext(ServletContext ctx) {
+		return (ApplicationContext) ctx.getAttribute(SPRING_CONTEXT_ATTR);
 	}
 }
