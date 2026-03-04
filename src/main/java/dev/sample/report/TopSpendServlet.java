@@ -1,10 +1,12 @@
 package dev.sample.report;
 
 import dev.sample.report.dto.IndustrySpendDto;
+import org.springframework.context.ApplicationContext;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +14,18 @@ import java.util.List;
 
 public class TopSpendServlet extends HttpServlet {
 
-    private final ReportService reportService = new ReportService();
+    private static final String SPRING_CONTEXT_ATTR = "SPRING_CONTEXT";
+    private ReportService reportService;
+
+    @Override
+    public void init() throws ServletException {
+        ApplicationContext springContext =
+                (ApplicationContext) getServletContext().getAttribute(SPRING_CONTEXT_ATTR);
+        if (springContext == null) {
+            throw new ServletException("Spring ApplicationContext not initialized.");
+        }
+        this.reportService = springContext.getBean(ReportService.class);
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

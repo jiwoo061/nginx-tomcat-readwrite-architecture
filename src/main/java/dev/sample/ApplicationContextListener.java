@@ -5,8 +5,6 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.sql.DataSource;
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -14,110 +12,117 @@ import java.util.Enumeration;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
 
 import dev.sample.auth.AuthConfig;
 
-import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 public class ApplicationContextListener implements ServletContextListener {
 
-	private HikariDataSource sourceDS;
-	private HikariDataSource replicaDS;
+    private static final String SPRING_CONTEXT_ATTR = "SPRING_CONTEXT"; // report ctx key
 
-	private AnnotationConfigApplicationContext spring;
+    private HikariDataSource sourceDS;
+    private HikariDataSource replicaDS;
 
-	@Override
-	public void contextInitialized(ServletContextEvent sce) {
-		System.out.println("컨텍스트 초기화됨");
-		ServletContext ctx = sce.getServletContext();
+    // auth/login ctx
+    private AnnotationConfigApplicationContext spring;
 
-		try {
-			Class.forName("com.mysql.cj.jdbc.Driver");
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
+    // report ctx
+    private AnnotationConfigApplicationContext springContext;
 
-		HikariConfig configSource = new HikariConfig();
-		// 필수 설정값(별도의 설정파일로 분리 가능, ex. jdbc.properties)
-		// 1. Source DB 설정 (Write/Read)
-		configSource.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
-		configSource.setUsername("root");
-		configSource.setPassword("1234");
-		configSource.setPoolName("HikariPool-Source");
-		sourceDS = new HikariDataSource(configSource);
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("컨텍스트 초기화됨");
+        ServletContext ctx = sce.getServletContext();
 
-		// 2. Replica DB 설정 (Read Only)
-		HikariConfig configReplica = new HikariConfig();
-		configReplica.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
-		configReplica.setUsername("root");
-		configReplica.setPassword("1234");
-		configReplica.setPoolName("HikariPool-Replica");
-		replicaDS = new HikariDataSource(configReplica);
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
 
-		// 선택 설정값 예시
-//        config.setMaximumPoolSize(10);
-//        config.setMinimumIdle(2);
-//        config.setConnectionTimeout(3000);
-//        config.setIdleTimeout(600000);
-//        config.setMaxLifetime(1800000);
+        // 1) Source DB (Write/Read)
+        HikariConfig configSource = new HikariConfig();
+        configSource.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
+        configSource.setUsername("root");
+        configSource.setPassword("1234");
+        configSource.setPoolName("HikariPool-Source");
+        sourceDS = new HikariDataSource(configSource);
 
-//		ds = new HikariDataSource(config);
+        // 2) Replica DB (Read Only)
+        HikariConfig configReplica = new HikariConfig();
+        configReplica.setJdbcUrl("jdbc:mysql://localhost:3306/card_db?serverTimezone=Asia/Seoul");
+        configReplica.setUsername("root");
+        configReplica.setPassword("1234");
+        configReplica.setPoolName("HikariPool-Replica");
+        replicaDS = new HikariDataSource(configReplica);
 
-//		ctx.setAttribute("DATA_SOURCE", ds);
+        // ServletContext에 두 개의 DataSource 저장
+        ctx.setAttribute("SOURCE_DS", sourceDS);
+        ctx.setAttribute("REPLICA_DS", replicaDS);
 
-		// ServletContext에 두 개의 DataSource를 모두 저장
-		ctx.setAttribute("SOURCE_DS", sourceDS);
-		ctx.setAttribute("REPLICA_DS", replicaDS);
-		
+        // ===== 3) auth/login용 Spring Context =====
         spring = new AnnotationConfigApplicationContext();
-        spring.registerBean("sourceDS", javax.sql.DataSource.class, () -> sourceDS);
-        spring.register(AuthConfig.class); // 너가 만든 authconfig
+        spring.registerBean("sourceDS", DataSource.class, () -> sourceDS); // ✅ javax.sql.DataSource
+        spring.register(AuthConfig.class);
         spring.refresh();
-
         ctx.setAttribute("SPRING_CTX", spring);
-        
+
         System.out.println("[BOOT] DS ready: " + (sourceDS != null));
         System.out.println("[BOOT] SPRING_CTX ready: " + (spring != null) + ", beans=" + spring.getBeanDefinitionCount());
-	}
 
-	@Override
-	public void contextDestroyed(ServletContextEvent sce) {
-		System.out.println("컨텍스트 종료됨: DB 커넥션 풀 자원 해제");
-		if(spring !=null)
-			spring.close();
-		if (sourceDS != null)
-			sourceDS.close();
-		if (replicaDS != null)
-			replicaDS.close();
+        // ===== 4) report용 Spring Context =====
+        springContext = new AnnotationConfigApplicationContext();
+        springContext.scan("dev.sample.report");
+        springContext.refresh();
+        ctx.setAttribute(SPRING_CONTEXT_ATTR, springContext);
+    }
 
-		// Tomcat 재배포/중지 시 MySQL cleanup thread 누수 경고 방지
-		try {
-			AbandonedConnectionCleanupThread.checkedShutdown();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("컨텍스트 종료됨: DB 커넥션 풀 자원 해제");
 
-		// 현재 웹앱 클래스로더에서 등록한 JDBC 드라이버 정리
-		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-		Enumeration<Driver> drivers = DriverManager.getDrivers();
-		while (drivers.hasMoreElements()) {
-			Driver d = drivers.nextElement();
-			if (d.getClass().getClassLoader() == cl) {
-				try {
-					DriverManager.deregisterDriver(d);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
+        if (spring != null) spring.close();
+        if (springContext != null) springContext.close();
 
-	// 상황에 맞는 DataSource를 가져오기 위한 static 메서드
-	public static DataSource getSourceDataSource(ServletContext ctx) {
-		return (DataSource) ctx.getAttribute("SOURCE_DS");
-	}
+        if (sourceDS != null) sourceDS.close();
+        if (replicaDS != null) replicaDS.close();
 
-	public static DataSource getReplicaDataSource(ServletContext ctx) {
-		return (DataSource) ctx.getAttribute("REPLICA_DS");
-	}
+        // Tomcat 재배포/중지 시 MySQL cleanup thread 누수 경고 방지
+        try {
+            AbandonedConnectionCleanupThread.checkedShutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 현재 웹앱 클래스로더에서 등록한 JDBC 드라이버 정리
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Enumeration<Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            Driver d = drivers.nextElement();
+            if (d.getClass().getClassLoader() == cl) {
+                try {
+                    DriverManager.deregisterDriver(d);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    // DS 꺼내기
+    public static DataSource getSourceDataSource(ServletContext ctx) {
+        return (DataSource) ctx.getAttribute("SOURCE_DS");
+    }
+
+    public static DataSource getReplicaDataSource(ServletContext ctx) {
+        return (DataSource) ctx.getAttribute("REPLICA_DS");
+    }
+
+    // report ctx 꺼내기 (기존 유지)
+    public static ApplicationContext getSpringContext(ServletContext ctx) {
+        return (ApplicationContext) ctx.getAttribute(SPRING_CONTEXT_ATTR);
+    }
 }
